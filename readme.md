@@ -20,7 +20,7 @@ clang -shared -isysroot $(xcrun --sdk iphoneos --show-sdk-path) -arch arm64 ios_
 
 ## 使用方法
 
-1. 下载安装 `Sideloadly`，用于将 `ios_loader.dylib` 注入到 iOS 应用中。
+1. 下载安装 `Sideloadly`(https://sideloadly.io/)，用于将 `ios_loader.dylib` 注入到 iOS 应用中。
 2. 解压ipa文件，找到 `Payload` 文件夹，将 `frigad.dylib` 放入 `Payload/xxx.app/Frameworks` 目录下; 将`frigad.config` 放入 `Payload/xxx.app/` 目录下。
 3. 使用 `Sideloadly` 将修改后的ipa文件安装到iOS设备上：
    - 打开 `Sideloadly`，选择修改后的ipa文件。
