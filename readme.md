@@ -55,9 +55,16 @@ xcrun --sdk iphoneos clang \
 ## 运行app
 
 1. 安装完成后，在iOS设备上找到已安装的应用并打开。
-2. 使用 Xcode 附加到 App 进程。如果 Xcode 附加后暂停在断点处，先点击
-   Continue；loader 会确认调试状态稳定后，在 App 主线程加载 Gadget。
-   Xcode 控制台中可用 `FrigadLoader` 过滤加载日志。
+2. 使用 Xcode 附加到 App 进程。首次 Continue 前，在 Xcode 的 LLDB 控制台
+   导入本仓库的 page-plan 处理脚本（必须使用 Mac 上的绝对路径）：
+
+   ```lldb
+   command script import /absolute/path/to/frigad_lldb.py
+   ```
+
+   看到 `[FrigadLLDB] page-plan stop-hook installed` 后点击 Continue。loader
+   会确认调试状态稳定后，在 App 主线程加载 Gadget；Xcode 控制台中可用
+   `FrigadLoader` 过滤 loader 日志。
 3. 测试frida是否注入成功，可以在终端中运行以下命令：
 
 ```bash
@@ -65,6 +72,36 @@ frida-ps -H <设备IP地址:端口> -n Gadget
 ```
 
 能进入Frida REPL后，即表示Frida注入成功。
+
+## iOS 26 的 page-plan 断点
+
+iOS 26 的 debugger mapping 强制策略下，Frida Gadget 会主动执行
+`brk #1337`，通过 x4/x5 向 Frida 自己的 jailed-iOS LLDB 注入器提交
+page-plan。直接用 Xcode 加载 Gadget 时，Xcode 不认识该协议，只会显示
+`EXC_BREAKPOINT` 并停在 `frigad.dylib` 的构造函数中。
+
+`frigad_lldb.py` 会识别 x1、x2 和 x3 中的 Frida magic/action，读取 page-plan，
+通过 LLDB 写回目标页面，然后设置 x0 与 pc 并自动继续。其他普通断点不会被
+自动忽略。
+
+如果导入脚本前已经停在以下位置：
+
+```text
+stop reason = EXC_BREAKPOINT
+frigad.dylib`___lldb_unnamed_symbol... + ...
+```
+
+在 LLDB 控制台执行：
+
+```lldb
+command script import /absolute/path/to/frigad_lldb.py
+frigad-page-plan
+continue
+```
+
+真机 iOS 默认页大小为 `0x4000`。手动命令也接受页大小参数，例如模拟器需要
+使用 4 KB 页时可执行 `frigad-page-plan 0x1000`；本项目的 iOS 26 真机流程
+无需修改默认值。
 
 ## 注意事项
 
@@ -76,6 +113,9 @@ frida-ps -H <设备IP地址:端口> -n Gadget
 - iOS 26 上不要继续使用仓库原有的 `frigad.dylib` 17.14.1。如果崩溃日志的
   调用栈包含 `gum_interceptor`、module registry 或 libdyld，先替换为最新
   Gadget，而不是继续调整 loader 的等待时间。
+- iOS 26 上即使使用 17.16.1，当前这种“Xcode 附加后由 App 内部 `dlopen`”的
+  加载方式仍必须导入 `frigad_lldb.py`，因为只有 Frida 自己的注入器原生处理
+  page-plan 协议。
 - 若日志为 `DYLD 1 Library missing`、`code signature invalid`，需要重新签名
   `ios_loader.dylib`、`frigad.dylib` 和最终 App；这不是 loader 代码问题。
 - 只有在不需要 `Interceptor` 的安全诊断模式下，才考虑在配置根节点加入
