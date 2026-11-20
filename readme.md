@@ -59,7 +59,7 @@ xcrun --sdk iphoneos clang \
    导入本仓库的 page-plan 处理脚本（必须使用 Mac 上的绝对路径）：
 
    ```lldb
-   command script import /absolute/path/to/frigad_lldb.py
+   command script import /Users/dongwenlong/dev/frigad/frigad_lldb.py
    ```
 
    看到 `[FrigadLLDB] page-plan stop-hook installed` 后点击 Continue。loader
