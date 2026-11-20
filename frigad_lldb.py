@@ -412,17 +412,29 @@ def frigad_codesign_page(debugger, command, exe_ctx, result, internal_dict):
 
 def __lldb_init_module(debugger, internal_dict):
     del internal_dict
-    debugger.HandleCommand(
+    commands = (
         "command script add -f frigad_lldb.frigad_page_plan "
-        "frigad-page-plan"
-    )
-    debugger.HandleCommand(
+        "frigad-page-plan",
         "command script add -f frigad_lldb.frigad_codesign_page "
-        "frigad-codesign-page"
+        "frigad-codesign-page",
+        "target stop-hook add -P frigad_lldb.FridaPagePlanStopHook",
     )
-    debugger.HandleCommand(
-        "target stop-hook add -P frigad_lldb.FridaPagePlanStopHook"
-    )
+    interpreter = debugger.GetCommandInterpreter()
+    for command in commands:
+        result = lldb.SBCommandReturnObject()
+        interpreter.HandleCommand(command, result)
+        if not result.Succeeded():
+            description = (result.GetError() or "unknown LLDB error").strip()
+            print(
+                "[FrigadLLDB] setup failed for {!r}: {}".format(
+                    command, description
+                )
+            )
+            return
+        output = result.GetOutput()
+        if output:
+            print(output, end="")
+
     print(
         "[FrigadLLDB] page-plan stop-hook installed "
         "(iOS page size 0x{:x})".format(_DEFAULT_IOS_PAGE_SIZE)
